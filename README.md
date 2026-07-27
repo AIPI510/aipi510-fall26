@@ -27,4 +27,6 @@ Add your .gitignore to your .gitignore and do not commit/push that moving forwar
 Remember that we need to merge everyone's files into the same branch, so a different requirements.txt or .gitignore from multiple people will cause merge conflicts and make everyone very sad. 
 
 Here are the branches you will be making PRs into:
-week2/
+* week2/
+* week4/
+* week6/
