@@ -1,0 +1,6 @@
+# You should add references to all of your data and code you don't want committed. 
+# DO NOT commit data!
+# DO NOT commit more files than stated in instructions 
+
+
+.DS_Store
