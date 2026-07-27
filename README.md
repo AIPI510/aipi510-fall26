@@ -18,3 +18,13 @@ Course introduces students to the technical and non-technical aspects of collect
 3. Install the required dependencies:
    ```
    pip install -r requirements.txt
+
+## PRs into this repo
+PRs should not exceed the necessary files which typically consist of a single script or notebook. Do NOT add to requirements.txt (include this in your PR description). 
+
+Add your .gitignore to your .gitignore and do not commit/push that moving forward. 
+
+Remember that we need to merge everyone's files into the same branch, so a different requirements.txt or .gitignore from multiple people will cause merge conflicts and make everyone very sad. 
+
+Here are the branches you will be making PRs into:
+week2/
