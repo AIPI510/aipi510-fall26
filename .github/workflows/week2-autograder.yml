@@ -1,0 +1,418 @@
+name: Week 2 Autograder
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  autograde:
+    if: github.event.pull_request.base.ref == 'week2'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Grade Week 2 submission
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.issue.number;
+            const pr = context.payload.pull_request;
+            const headSha = pr.head.sha;
+
+            const MARKER = "<!-- week2-autograder -->";
+
+            // -------------------------------------------------------
+            // Helpers
+            // -------------------------------------------------------
+
+            function result(passed, points, description) {
+              return {
+                passed,
+                points: passed ? points : 0,
+                possible: points,
+                description
+              };
+            }
+
+            function has(source, regex) {
+              return regex.test(source);
+            }
+
+            function countNotes(source) {
+              const lines = source.split("\n");
+
+              // Look primarily near the bottom of the file
+              const bottom = lines.slice(-20);
+
+              const commentLines = bottom.filter(line => {
+                const trimmed = line.trim();
+
+                return (
+                  trimmed.startsWith("#") &&
+                  trimmed.replace(/^#+\s*/, "").length >= 8
+                );
+              });
+
+              return commentLines.length;
+            }
+
+            async function getStudentFiles() {
+              const files = await github.paginate(
+                github.rest.pulls.listFiles,
+                {
+                  owner,
+                  repo,
+                  pull_number,
+                  per_page: 100
+                }
+              );
+
+              return files.filter(file =>
+                file.filename.endsWith(".py") &&
+                (
+                  file.filename.startsWith("week2/web/") ||
+                  file.filename.startsWith("week2/api/") ||
+                  file.filename.startsWith("week2/arduino/")
+                )
+              );
+            }
+
+            async function readFile(path) {
+              try {
+                const response = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path,
+                  ref: headSha
+                });
+
+                if (Array.isArray(response.data)) {
+                  return null;
+                }
+
+                return Buffer.from(
+                  response.data.content,
+                  "base64"
+                ).toString("utf8");
+
+              } catch (error) {
+                console.log(`Could not read ${path}`);
+                return null;
+              }
+            }
+
+            // -------------------------------------------------------
+            // Find student submission
+            // -------------------------------------------------------
+
+            const studentFiles = await getStudentFiles();
+
+            const webFiles = studentFiles.filter(
+              f => f.filename.startsWith("week2/web/")
+            );
+
+            const apiFiles = studentFiles.filter(
+              f => f.filename.startsWith("week2/api/")
+            );
+
+            const arduinoFiles = studentFiles.filter(
+              f => f.filename.startsWith("week2/arduino/")
+            );
+
+            const webFile = webFiles[0];
+            const apiFile = apiFiles[0];
+            const arduinoFile = arduinoFiles[0];
+
+            const webSource = webFile
+              ? await readFile(webFile.filename)
+              : "";
+
+            const apiSource = apiFile
+              ? await readFile(apiFile.filename)
+              : "";
+
+            const arduinoSource = arduinoFile
+              ? await readFile(arduinoFile.filename)
+              : "";
+
+            // -------------------------------------------------------
+            // Grade
+            // -------------------------------------------------------
+
+            const grades = [];
+
+            // =======================================================
+            // SUBMISSION STRUCTURE — 2 points
+            // =======================================================
+
+            grades.push({
+              section: "Submission Structure",
+              checks: [
+                result(
+                  webFiles.length === 1 &&
+                  apiFiles.length === 1 &&
+                  arduinoFiles.length === 1,
+                  1,
+                  "One Python file submitted in each station directory"
+                ),
+
+                result(
+                  webFile &&
+                  apiFile &&
+                  arduinoFile &&
+                  webFile.filename.split("/").pop() === apiFile.filename.split("/").pop() &&
+                  apiFile.filename.split("/").pop() === arduinoFile.filename.split("/").pop(),
+                  1,
+                  "Same student filename used for all three stations"
+                )
+              ]
+            });
+
+            // =======================================================
+            // STATION 1: WEB SCRAPING — 6 points
+            // =======================================================
+
+            grades.push({
+              section: "Station 1: Web Scraping",
+              checks: [
+                result(
+                  has(webSource, /requests\s*\.\s*get\s*\(/),
+                  1,
+                  "Makes an HTTP GET request"
+                ),
+
+                result(
+                  has(webSource, /BeautifulSoup\s*\(/) ||
+                  has(webSource, /read_html\s*\(/),
+                  1,
+                  "Uses BeautifulSoup or pandas.read_html"
+                ),
+
+                result(
+                  has(webSource, /DataFrame\s*\(/) ||
+                  has(webSource, /read_html\s*\(/) ||
+                  has(webSource, /pd\s*\.\s*DataFrame/),
+                  1,
+                  "Creates or extracts tabular data"
+                ),
+
+                result(
+                  has(webSource, /\.dropna\s*\(/) ||
+                  has(webSource, /\.drop\s*\(/) ||
+                  has(webSource, /\.fillna\s*\(/) ||
+                  has(webSource, /\.reset_index\s*\(/) ||
+                  has(webSource, /\.duplicated\s*\(/) ||
+                  has(webSource, /\.drop_duplicates\s*\(/) ||
+                  has(webSource, /\.replace\s*\(/),
+                  1,
+                  "Includes a data-cleaning step"
+                ),
+
+                result(
+                  has(webSource, /\.head\s*\(\s*(5)?\s*\)/),
+                  1,
+                  "Displays the first 5 rows"
+                ),
+
+                result(
+                  countNotes(webSource) >= 3,
+                  1,
+                  "Includes at least 3 lines of notes near the bottom"
+                )
+              ]
+            });
+
+            // =======================================================
+            // STATION 2: API — 6 points
+            // =======================================================
+
+            grades.push({
+              section: "Station 2: API",
+              checks: [
+                result(
+                  has(apiSource, /requests\s*\.\s*get\s*\(/),
+                  1,
+                  "Makes an HTTP GET request"
+                ),
+
+                result(
+                  has(apiSource, /\.json\s*\(\s*\)/) ||
+                  has(apiSource, /json\s*\.\s*loads\s*\(/),
+                  1,
+                  "Parses a JSON response"
+                ),
+
+                result(
+                  has(apiSource, /pd\s*\.\s*DataFrame\s*\(/) ||
+                  has(apiSource, /DataFrame\s*\(/) ||
+                  has(apiSource, /json_normalize\s*\(/),
+                  1,
+                  "Stores API data in a DataFrame"
+                ),
+
+                result(
+                  has(apiSource, /\[[\'"][^\'"]+[\'"]\]/) ||
+                  has(apiSource, /\.get\s*\(\s*[\'"]/),
+                  1,
+                  "Extracts fields from the API response"
+                ),
+
+                result(
+                  has(apiSource, /\.head\s*\(\s*(5)?\s*\)/),
+                  1,
+                  "Displays the first 5 rows"
+                ),
+
+                result(
+                  countNotes(apiSource) >= 3,
+                  1,
+                  "Includes at least 3 lines of notes near the bottom"
+                )
+              ]
+            });
+
+            // =======================================================
+            // STATION 3: ARDUINO — 6 points
+            // =======================================================
+
+            grades.push({
+              section: "Station 3: Arduino",
+              checks: [
+                result(
+                  has(arduinoSource, /serial\s*\.\s*Serial\s*\(/),
+                  1,
+                  "Connects using serial.Serial"
+                ),
+
+                result(
+                  has(arduinoSource, /\.readline\s*\(/),
+                  1,
+                  "Reads serial sensor output"
+                ),
+
+                result(
+                  has(arduinoSource, /\.split\s*\(/) ||
+                  has(arduinoSource, /\.strip\s*\(/) ||
+                  has(arduinoSource, /\.decode\s*\(/),
+                  1,
+                  "Parses the serial output"
+                ),
+
+                result(
+                  has(arduinoSource, /pd\s*\.\s*DataFrame\s*\(/) ||
+                  has(arduinoSource, /DataFrame\s*\(/) ||
+                  has(arduinoSource, /\.append\s*\(/),
+                  1,
+                  "Stores readings in a structured format"
+                ),
+
+                result(
+                  has(arduinoSource, /\.to_csv\s*\(/),
+                  1,
+                  "Saves collected data to CSV"
+                ),
+
+                result(
+                  has(arduinoSource, /\.head\s*\(\s*(5)?\s*\)/) &&
+                  countNotes(arduinoSource) >= 3,
+                  1,
+                  "Displays the first 5 rows and includes notes"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // Calculate final score
+            // -------------------------------------------------------
+
+            let total = 0;
+            let possible = 0;
+
+            for (const section of grades) {
+              for (const check of section.checks) {
+                total += check.points;
+                possible += check.possible;
+              }
+            }
+
+            // -------------------------------------------------------
+            // Build PR comment
+            // -------------------------------------------------------
+
+            let body = `${MARKER}
+            ## 🤖 Week 2 Autograder
+
+            **Score: ${total} / ${possible}**
+
+            `;
+
+            for (const section of grades) {
+
+              const sectionScore = section.checks.reduce(
+                (sum, check) => sum + check.points,
+                0
+              );
+
+              const sectionPossible = section.checks.reduce(
+                (sum, check) => sum + check.possible,
+                0
+              );
+
+              body += `### ${section.section} — ${sectionScore}/${sectionPossible}\n\n`;
+
+              for (const check of section.checks) {
+                const symbol = check.passed ? "✅" : "❌";
+
+                body += `${symbol} ${check.description} — **${check.points}/${check.possible}**\n`;
+              }
+
+              body += "\n";
+            }
+
+            body += `
+            ---
+            This automated score checks the technical requirements of the assignment. Human reviewers may adjust the final grade based on the quality and correctness of the submission.
+            `;
+
+            // -------------------------------------------------------
+            // Find existing autograder comment
+            // -------------------------------------------------------
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: pull_number,
+                per_page: 100
+              }
+            );
+
+            const existingComment = comments.find(
+              comment =>
+                comment.user.type === "Bot" &&
+                comment.body.includes(MARKER)
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body
+              });
+            }
+
+            console.log(`Week 2 score: ${total}/${possible}`);
