@@ -1,0 +1,835 @@
+name: Week 6 Autograder
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  autograde:
+    if: github.event.pull_request.base.ref == 'week6'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Grade Week 6 notebook
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.issue.number;
+            const pr = context.payload.pull_request;
+
+            const MARKER = "<!-- week6-autograder -->";
+
+            // =======================================================
+            // HELPERS
+            // =======================================================
+
+            function result(passed, points, description) {
+              return {
+                passed,
+                points: passed ? points : 0,
+                possible: points,
+                description
+              };
+            }
+
+            function has(text, regex) {
+              return regex.test(text || "");
+            }
+
+            function hasAny(text, regexes) {
+              return regexes.some(regex => regex.test(text || ""));
+            }
+
+            function countMatches(text, regex) {
+              return (text || "").match(regex)?.length || 0;
+            }
+
+            function wordCount(text) {
+              return (text || "")
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .length;
+            }
+
+            function sourceToString(source) {
+              if (Array.isArray(source)) {
+                return source.join("");
+              }
+
+              return source || "";
+            }
+
+            function outputToString(output) {
+              let text = "";
+
+              if (output.text) {
+                text += sourceToString(output.text);
+              }
+
+              if (output.data) {
+                if (output.data["text/plain"]) {
+                  text += sourceToString(output.data["text/plain"]);
+                }
+
+                if (output.data["text/markdown"]) {
+                  text += sourceToString(output.data["text/markdown"]);
+                }
+              }
+
+              return text;
+            }
+
+            // =======================================================
+            // GET NOTEBOOK FROM PR
+            // =======================================================
+
+            const changedFiles = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner,
+                repo,
+                pull_number,
+                per_page: 100
+              }
+            );
+
+            const notebookFiles = changedFiles.filter(
+              file =>
+                file.status !== "removed" &&
+                file.filename.endsWith(".ipynb")
+            );
+
+            const notebookFile = notebookFiles[0];
+
+            let notebook = null;
+            let notebookReadable = false;
+
+            if (notebookFile) {
+              try {
+                const headRepoFullName =
+                  pr.head.repo?.full_name || `${owner}/${repo}`;
+
+                const [headOwner, headRepo] =
+                  headRepoFullName.split("/");
+
+                const blob = await github.rest.git.getBlob({
+                  owner: headOwner,
+                  repo: headRepo,
+                  file_sha: notebookFile.sha
+                });
+
+                const raw = Buffer.from(
+                  blob.data.content.replace(/\n/g, ""),
+                  "base64"
+                ).toString("utf8");
+
+                notebook = JSON.parse(raw);
+                notebookReadable = true;
+
+              } catch (error) {
+                console.log(
+                  `Could not parse notebook: ${error.message}`
+                );
+              }
+            }
+
+            const cells = notebook?.cells || [];
+
+            const markdownCells = cells.filter(
+              cell => cell.cell_type === "markdown"
+            );
+
+            const codeCells = cells.filter(
+              cell => cell.cell_type === "code"
+            );
+
+            const markdown = markdownCells
+              .map(cell => sourceToString(cell.source))
+              .join("\n\n");
+
+            const code = codeCells
+              .map(cell => sourceToString(cell.source))
+              .join("\n\n");
+
+            const outputs = codeCells
+              .flatMap(cell => cell.outputs || [])
+              .map(output => outputToString(output))
+              .join("\n");
+
+            const allText = `${markdown}\n${code}\n${outputs}`;
+
+            // =======================================================
+            // CLAIM DEFINITIONS
+            // =======================================================
+
+            const CONTINUOUS_TESTS = [
+              /\bindependent samples? t[\s-]?test\b/i,
+              /\bindependent t[\s-]?test\b/i,
+              /\btwo[\s-]?sample t[\s-]?test\b/i,
+              /\bt[\s-]?test\b/i,
+              /\bwelch(?:'s)?\b/i,
+              /\bmann[\s-]?whitney\b/i,
+              /\bwilcoxon rank[\s-]?sum\b/i,
+              /\blinear regression\b/i,
+              /\bregression\b/i,
+              /\bancova\b/i,
+              /\bpermutation test\b/i
+            ];
+
+            const BINARY_TESTS = [
+              /\btwo[\s-]?proportion z[\s-]?test\b/i,
+              /\bproportion z[\s-]?test\b/i,
+              /\bz[\s-]?test\b/i,
+              /\bchi[\s-]?square\b/i,
+              /\bchi squared\b/i,
+              /\bfisher(?:'s)? exact\b/i,
+              /\blogistic regression\b/i,
+              /\bbinomial\b/i,
+              /\brisk ratio\b/i
+            ];
+
+            const ORDINAL_TESTS = [
+              /\bmann[\s-]?whitney\b/i,
+              /\bwilcoxon rank[\s-]?sum\b/i,
+              /\bordinal logistic\b/i,
+              /\bproportional odds\b/i,
+              /\bpermutation test\b/i,
+              /\bt[\s-]?test\b/i
+            ];
+
+            const COUNT_TESTS = [
+              /\bpoisson\b/i,
+              /\bnegative binomial\b/i,
+              /\brate ratio\b/i,
+              /\bincidence rate ratio\b/i,
+              /\bgeneralized linear model\b/i,
+              /\bglm\b/i,
+              /\bmann[\s-]?whitney\b/i,
+              /\bpermutation test\b/i,
+              /\bt[\s-]?test\b/i
+            ];
+
+            const CLAIMS = [
+              {
+                name: "BrainBoost Gum Co.",
+                type: "continuous",
+                keys: [
+                  /brainboost/i,
+                  /nootropic gum/i,
+                  /memory recall/i
+                ],
+                tests: CONTINUOUS_TESTS
+              },
+
+              {
+                name: "MoodMate App",
+                type: "binary",
+                keys: [
+                  /moodmate/i,
+                  /depressive symptoms/i,
+                  /depression symptoms/i
+                ],
+                tests: BINARY_TESTS
+              },
+
+              {
+                name: "HydroHype Water Bottle",
+                type: "continuous",
+                keys: [
+                  /hydrohype/i,
+                  /smart water bottle/i,
+                  /water consumption/i
+                ],
+                tests: CONTINUOUS_TESTS
+              },
+
+              {
+                name: "FocusBean Tea Co.",
+                type: "continuous",
+                keys: [
+                  /focusbean/i,
+                  /mushroom.*tea/i,
+                  /reaction time/i
+                ],
+                tests: CONTINUOUS_TESTS
+              },
+
+              {
+                name: "PetPulse",
+                type: "continuous",
+                keys: [
+                  /petpulse/i,
+                  /petting a dog/i,
+                  /heart rate/i
+                ],
+                tests: CONTINUOUS_TESTS
+              },
+
+              {
+                name: "SnoozeSound Pillow",
+                type: "continuous",
+                keys: [
+                  /snoozesound/i,
+                  /white noise pillow/i,
+                  /fall asleep/i,
+                  /time to sleep/i
+                ],
+                tests: CONTINUOUS_TESTS
+              },
+
+              {
+                name: "GratiText",
+                type: "ordinal",
+                keys: [
+                  /grat(itext|itude text)/i,
+                  /happiness/i
+                ],
+                tests: ORDINAL_TESTS
+              },
+
+              {
+                name: "OfficeOasis Plant Co.",
+                type: "continuous",
+                keys: [
+                  /officeoasis/i,
+                  /desk plant/i,
+                  /productivity/i
+                ],
+                tests: CONTINUOUS_TESTS
+              },
+
+              {
+                name: "SnackTrack App",
+                type: "count",
+                keys: [
+                  /snacktrack/i,
+                  /snacking episodes/i,
+                  /mindless snacking/i
+                ],
+                tests: COUNT_TESTS
+              },
+
+              {
+                name: "ZoomZen Plugin",
+                type: "continuous",
+                keys: [
+                  /zoomzen/i,
+                  /self[\s-]?view/i,
+                  /perceived stress/i
+                ],
+                tests: CONTINUOUS_TESTS
+              }
+            ];
+
+            // =======================================================
+            // IDENTIFY SELECTED CLAIM
+            // =======================================================
+
+            let selectedClaim = null;
+            let bestClaimScore = 0;
+
+            for (const claim of CLAIMS) {
+              const score = claim.keys.filter(
+                regex => regex.test(markdown)
+              ).length;
+
+              if (score > bestClaimScore) {
+                bestClaimScore = score;
+                selectedClaim = claim;
+              }
+            }
+
+            const claimDetected =
+              selectedClaim !== null &&
+              bestClaimScore > 0;
+
+            console.log(
+              claimDetected
+                ? `Detected claim: ${selectedClaim.name}`
+                : "Could not identify selected claim"
+            );
+
+            // =======================================================
+            // HYPOTHESES
+            // =======================================================
+
+            const hasNullHypothesis =
+              hasAny(markdown, [
+                /\bnull hypothesis\b/i,
+                /\bh0\s*[:=]/i,
+                /\bh₀\s*[:=]/i,
+                /\bh_0\s*[:=]/i
+              ]);
+
+            const hasAlternativeHypothesis =
+              hasAny(markdown, [
+                /\balternative hypothesis\b/i,
+                /\bha\s*[:=]/i,
+                /\bh1\s*[:=]/i,
+                /\bh₁\s*[:=]/i,
+                /\bh_1\s*[:=]/i
+              ]);
+
+            const hypothesesContainComparison =
+              hasAny(markdown, [
+                /\bcompared (?:to|with)\b/i,
+                /\bversus\b/i,
+                /\bvs\.?\b/i,
+                /\bdifference between\b/i,
+                /\bgreater than\b/i,
+                /\bless than\b/i,
+                /\bhigher than\b/i,
+                /\blower than\b/i,
+                /\bmore than\b/i,
+                /\bfaster than\b/i,
+                /\bincrease/i,
+                /\bdecrease/i,
+                /\breduce/i,
+                /\bimprov/i
+              ]);
+
+            // =======================================================
+            // STATISTICAL TEST
+            // =======================================================
+
+            const ALL_TEST_PATTERNS = [
+              ...CONTINUOUS_TESTS,
+              ...BINARY_TESTS,
+              ...ORDINAL_TESTS,
+              ...COUNT_TESTS,
+              /\banova\b/i,
+              /\bkruskal[\s-]?wallis\b/i
+            ];
+
+            const statisticalTestNamed =
+              hasAny(allText, ALL_TEST_PATTERNS);
+
+            const statisticalTestAppropriate =
+              claimDetected &&
+              selectedClaim.tests.some(
+                regex => regex.test(allText)
+              );
+
+            const testRationale =
+              hasAny(markdown, [
+                /(t[\s-]?test|welch|mann[\s-]?whitney|wilcoxon|chi[\s-]?square|fisher|logistic|poisson|negative binomial|regression|permutation)[\s\S]{0,450}(because|rationale|appropriate|chose|chosen|choice|assumption|continuous|binary|ordinal|count|distribution|independent)/i,
+
+                /(because|rationale|appropriate|chose|chosen|choice|assumption|continuous|binary|ordinal|count|distribution|independent)[\s\S]{0,450}(t[\s-]?test|welch|mann[\s-]?whitney|wilcoxon|chi[\s-]?square|fisher|logistic|poisson|negative binomial|regression|permutation)/i
+              ]);
+
+            // =======================================================
+            // LITERATURE + EFFECT SIZE
+            // =======================================================
+
+            const hasLiteratureCitation =
+              hasAny(markdown, [
+                /https?:\/\/(?:www\.)?(?:pubmed|pmc)\.ncbi\.nlm\.nih\.gov/i,
+                /https?:\/\/doi\.org\//i,
+                /\bdoi\s*:/i,
+                /\b10\.\d{4,9}\/[-._;()/:A-Z0-9]+\b/i,
+                /\bet al\.\s*,?\s*\(?20\d{2}\)?/i,
+                /\([A-Z][A-Za-z'-]+(?:\s+et al\.)?,?\s*20\d{2}\)/,
+                /\[[^\]]+\]\(https?:\/\/[^)]+\)/i
+              ]);
+
+            const effectSizeTerms = [
+              /\beffect size\b/i,
+              /\bcohen(?:'s)? d\b/i,
+              /\bhedges(?:'s)? g\b/i,
+              /\bodds ratio\b/i,
+              /\brisk ratio\b/i,
+              /\brelative risk\b/i,
+              /\brisk difference\b/i,
+              /\bstandardized mean difference\b/i,
+              /\bmean difference\b/i,
+              /\brate ratio\b/i,
+              /\bincidence rate ratio\b/i,
+              /\bcorrelation coefficient\b/i,
+              /\bpearson(?:'s)? r\b/i,
+              /\beta squared\b/i,
+              /\bη2\b/i,
+              /\bphi coefficient\b/i,
+              /\bcohen(?:'s)? h\b/i
+            ];
+
+            const identifiesEffectSize =
+              hasAny(markdown, effectSizeTerms) ||
+              hasAny(code, effectSizeTerms);
+
+            const numericEffectSize =
+              hasAny(allText, [
+                /effect size[\s\S]{0,120}[-+]?\d*\.?\d+/i,
+                /cohen(?:'s)? d[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /hedges(?:'s)? g[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /odds ratio[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /risk ratio[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /relative risk[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /mean difference[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /rate ratio[\s\S]{0,80}[-+]?\d*\.?\d+/i,
+                /\bd\s*=\s*[-+]?\d*\.?\d+/i,
+                /effect_size\s*=\s*[-+]?\d*\.?\d+/i
+              ]);
+
+            const connectsLiteratureToEffect =
+              hasAny(markdown, [
+                /(study|paper|research|literature|article|authors?|reported|found)[\s\S]{0,350}(effect size|cohen|hedges|odds ratio|risk ratio|relative risk|mean difference|rate ratio|correlation)/i,
+
+                /(effect size|cohen|hedges|odds ratio|risk ratio|relative risk|mean difference|rate ratio|correlation)[\s\S]{0,350}(study|paper|research|literature|article|authors?|reported|found)/i
+              ]);
+
+            // =======================================================
+            // POWER ANALYSIS
+            // =======================================================
+
+            const performsPowerAnalysis =
+              hasAny(allText, [
+                /\bpower analysis\b/i,
+                /\bTTestIndPower\b/,
+                /\bTTestPower\b/,
+                /\bNormalIndPower\b/,
+                /\bGofChisquarePower\b/,
+                /\bFTestPower\b/,
+                /\bFTestAnovaPower\b/,
+                /\bsolve_power\s*\(/,
+                /\bzt_ind_solve_power\s*\(/,
+                /statsmodels\.stats\.power/i,
+                /\bG\*?Power\b/i,
+                /\bpwr\./i,
+                /\bpower_ttest\b/i
+              ]);
+
+            const powerUsesEffectSize =
+              performsPowerAnalysis &&
+              (
+                hasAny(code, [
+                  /effect_size\s*=/i,
+                  /effectsize\s*=/i,
+                  /effect\s*=/i,
+                  /\bcohen/i,
+                  /\bsolve_power\s*\([^)]*\w+/i
+                ]) ||
+                numericEffectSize
+              );
+
+            const specifiesAlpha =
+              hasAny(allText, [
+                /\balpha\s*=\s*0?\.\d+/i,
+                /\bα\s*=\s*0?\.\d+/i,
+                /significance level[\s\S]{0,80}0?\.\d+/i,
+                /\bp\s*<\s*0\.0\d/i
+              ]);
+
+            const specifiesTargetPower =
+              hasAny(allText, [
+                /\bpower\s*=\s*0?\.[789]\d*/i,
+                /\bpower\s*=\s*0?\.9\d*/i,
+                /\b(?:80|85|90|95)\s*%\s*power\b/i,
+                /\bpower[\s\S]{0,60}(?:0\.[789]\d*|0\.9\d*|80%|85%|90%|95%)/i
+              ]);
+
+            const reportsSampleSize =
+              hasAny(allText, [
+                /required sample size[\s\S]{0,120}\d+/i,
+                /sample size[\s\S]{0,120}\d+/i,
+                /\brequired n[\s\S]{0,80}\d+/i,
+                /\bn required[\s\S]{0,80}\d+/i,
+                /\bsample_size\s*=/i,
+                /\brequired_n\s*=/i,
+                /\bn_required\s*=/i,
+                /\bnobs1?\b/i,
+                /\bceil\s*\([^)]*solve_power/i
+              ]);
+
+            // =======================================================
+            // RATIONALE
+            // =======================================================
+
+            const rationaleMarkers =
+              countMatches(
+                markdown,
+                /\b(because|therefore|rationale|reason|appropriate|chose|chosen|choice|assumption|assuming|based on|given that|we selected|we use|we used|we decided|justif)/gi
+              );
+
+            const providesRationaleThroughout =
+              rationaleMarkers >= 3;
+
+            const interpretsStudySize =
+              hasAny(markdown, [
+                /sample size[\s\S]{0,300}(participant|subject|user|person|people|per group|each group|total|recruit|study|feasib)/i,
+
+                /(participant|subject|user|person|people|per group|each group|total|recruit|study|feasib)[\s\S]{0,300}sample size/i
+              ]);
+
+            // =======================================================
+            // 20-POINT RUBRIC
+            // =======================================================
+
+            const grades = [];
+
+            // -------------------------------------------------------
+            // STUDY FRAMING & HYPOTHESES — 5
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Study Framing & Hypotheses",
+              checks: [
+                result(
+                  notebookFiles.length === 1 && notebookReadable,
+                  1,
+                  "A readable Jupyter notebook is submitted"
+                ),
+
+                result(
+                  claimDetected,
+                  1,
+                  claimDetected
+                    ? `Identifies the selected claim (${selectedClaim.name})`
+                    : "Identifies the selected client claim"
+                ),
+
+                result(
+                  hasNullHypothesis,
+                  1,
+                  "States an explicit null hypothesis"
+                ),
+
+                result(
+                  hasAlternativeHypothesis,
+                  1,
+                  "States an explicit alternative hypothesis"
+                ),
+
+                result(
+                  hasNullHypothesis &&
+                  hasAlternativeHypothesis &&
+                  hypothesesContainComparison,
+                  1,
+                  "Hypotheses express the comparison/direction being tested"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // STATISTICAL TEST — 4
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Statistical Test",
+              checks: [
+                result(
+                  statisticalTestNamed,
+                  1,
+                  "Identifies a statistical test"
+                ),
+
+                result(
+                  statisticalTestAppropriate,
+                  2,
+                  claimDetected
+                    ? `Test is broadly appropriate for a ${selectedClaim.type} outcome`
+                    : "Test is broadly appropriate for the outcome type"
+                ),
+
+                result(
+                  testRationale,
+                  1,
+                  "Provides rationale for the statistical test choice"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // LITERATURE & EFFECT SIZE — 4
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Literature & Effect Size",
+              checks: [
+                result(
+                  hasLiteratureCitation,
+                  1,
+                  "Provides a literature source or citation"
+                ),
+
+                result(
+                  connectsLiteratureToEffect,
+                  1,
+                  "Connects the literature to the expected effect"
+                ),
+
+                result(
+                  identifiesEffectSize,
+                  1,
+                  "Identifies an effect-size measure"
+                ),
+
+                result(
+                  numericEffectSize,
+                  1,
+                  "Provides a numerical effect-size estimate"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // POWER ANALYSIS — 5
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Power Analysis",
+              checks: [
+                result(
+                  performsPowerAnalysis,
+                  1,
+                  "Performs or documents a power analysis"
+                ),
+
+                result(
+                  powerUsesEffectSize,
+                  1,
+                  "Uses the effect-size estimate in the power analysis"
+                ),
+
+                result(
+                  specifiesAlpha,
+                  1,
+                  "Specifies a significance level (alpha)"
+                ),
+
+                result(
+                  specifiesTargetPower,
+                  1,
+                  "Specifies target statistical power"
+                ),
+
+                result(
+                  reportsSampleSize,
+                  1,
+                  "Reports the required sample size"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // RATIONALE & INTERPRETATION — 2
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Rationale & Interpretation",
+              checks: [
+                result(
+                  providesRationaleThroughout,
+                  1,
+                  "Provides rationale throughout the study design"
+                ),
+
+                result(
+                  interpretsStudySize,
+                  1,
+                  "Interprets the required sample size in the context of the study"
+                )
+              ]
+            });
+
+            // =======================================================
+            // CALCULATE SCORE
+            // =======================================================
+
+            let total = 0;
+            let possible = 0;
+
+            for (const section of grades) {
+              for (const check of section.checks) {
+                total += check.points;
+                possible += check.possible;
+              }
+            }
+
+            // =======================================================
+            // BUILD PR COMMENT
+            // =======================================================
+
+            let body = `${MARKER}
+            ## 🤖 Week 6 Autograder
+
+            **Score: ${total} / ${possible}**
+
+            `;
+
+            if (claimDetected) {
+              body += `**Detected claim:** ${selectedClaim.name}  \n`;
+              body += `**Outcome type:** ${selectedClaim.type}\n\n`;
+            }
+
+            for (const section of grades) {
+
+              const sectionScore = section.checks.reduce(
+                (sum, check) => sum + check.points,
+                0
+              );
+
+              const sectionPossible = section.checks.reduce(
+                (sum, check) => sum + check.possible,
+                0
+              );
+
+              body += `### ${section.section} — ${sectionScore}/${sectionPossible}\n\n`;
+
+              for (const check of section.checks) {
+                const symbol = check.passed ? "✅" : "❌";
+
+                body += `${symbol} ${check.description} — **${check.points}/${check.possible}**\n`;
+              }
+
+              body += "\n";
+            }
+
+            body += `
+            ---
+            This automated score checks whether the major components of the study design are present and internally plausible. Statistical analyses can be approached in multiple defensible ways, so human reviewers may adjust the score based on the quality of the hypotheses, literature selection, effect-size interpretation, test choice, assumptions, and rationale.
+            `;
+
+            // =======================================================
+            // CREATE OR UPDATE COMMENT
+            // =======================================================
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: pull_number,
+                per_page: 100
+              }
+            );
+
+            const existingComment = comments.find(
+              comment =>
+                comment.user.type === "Bot" &&
+                comment.body.includes(MARKER)
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body
+              });
+            }
+
+            console.log(`Week 6 score: ${total}/${possible}`);
