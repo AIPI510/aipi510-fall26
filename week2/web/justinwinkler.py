@@ -54,3 +54,10 @@ print(df.head())
 # award rankings for a given year -- although it would also likely be weighted
 # towards recent years to reflect modern voter preferences. Another model would 
 # work in the opposite direction, using age to predict statistical decline.
+#
+# **composite profiles like those mentioned above would some additional 
+# processing. As part of the data cleaning process for this exercised, I 
+# dropped duplicate rows based on player name because players who played for
+# multiple teams in the season in question had mutiple entries. Team profiles, 
+# e.g., would need to include stat totals for all players that played for that 
+# team, including these partial season statistics.
