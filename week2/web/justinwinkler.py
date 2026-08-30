@@ -36,7 +36,7 @@ df.drop_duplicates(subset=["player"], inplace=True)
 df.reset_index(drop=True, inplace=True)
 
 # Display the first five entries of dataframe
-print(df.head(100).to_string())
+print(df.head())
 
 # ============================================================================
 # The data in this dataframe includes player biographical information and 
