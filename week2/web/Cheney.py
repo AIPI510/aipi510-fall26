@@ -30,3 +30,10 @@ df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
 # 4. Print the first 5 rows
 print("--- First 5 rows of the scraped data ---")
 print(df.head())
+
+# 5. Add 3–5 lines of notes at the bottom of the script describing your data and how you might use it
+# --- Data Notes ---
+# This dataset contains global nominal Gross Domestic Product (GDP) statistics compiled directly from public tables.
+# It can be utilized for macro-level economic analysis, evaluating national wealth, and comparing international market sizes.
+# Potential use cases include building predictive economic models or visualizing regional income disparities in dashboard apps.
+# Note that reporting timelines and currency conversion methods may vary slightly across international financial institutions.
