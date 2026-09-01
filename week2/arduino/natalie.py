@@ -15,7 +15,9 @@ ser.close()
 
 df = pd.DataFrame(data_list, columns=['Sensor_Value'])
 print(df.head())
-
+print (df)
 
 # Save the DataFrame to a CSV file pulling arduino data
+# data from an accelerometor 
+#interesting data
 
