@@ -26,12 +26,19 @@ def get_weather(city):
     }
     response = requests.get(url, params=params)
     response.raise_for_status()
-    return response
+    return response.json()
 
 
 if __name__ == "__main__":
     response = get_weather("Durham")
+    main = response["main"]
 
-    df = pd.DataFrame(response.json()["main"], index=[0])
+    df = pd.DataFrame(main, index=[0])
     print(df)
+
+"""
+Note
+Note
+Note
+"""
 

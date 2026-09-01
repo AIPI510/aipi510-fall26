@@ -21,3 +21,8 @@ df = pd.DataFrame(
 )
 print(df.head())
 
+"""
+arduino code
+is in
+.ino file
+"""
