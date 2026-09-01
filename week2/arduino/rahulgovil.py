@@ -36,9 +36,8 @@ print(df.head())
 
 ser.close()
 
-'''
-The values of the data from the Arduino is a list of time, motion, temperature, pressure, 
-orientation, and sound. This data can be used to analyze the environment and conditions of the sensor.
-It could also be used to train a model to predict certain conditions given certain inputs such as
-the movements of the sensor.
-'''
+
+#The values of the data from the Arduino is a list of time, motion, temperature, pressure, 
+#orientation, and sound. This data can be used to analyze the environment and conditions of the sensor.
+#It could also be used to train a model to predict certain conditions given certain inputs such as
+#the movements of the sensor.

@@ -22,10 +22,9 @@ df.drop(columns=["Rk", "Awards"], inplace=True)
 
 print(df.head())
 
-'''
-This script pulls the per-game averages of the Detroit Pistons players for the 2026 season from Basketball Reference.
-The data contains their name, shooting percentages, assists and rebounds, and other relevant information. This information,
-alongside other information from the same link, can be used to analyze the team and its players, for analytics such as player
-impact and performance. Modeling can also be done by mapping the height and weight information to production based on the position
-that the player plays. This can help optimize the roster for best performance.
-'''
+
+#This script pulls the per-game averages of the Detroit Pistons players for the 2026 season from Basketball Reference.
+#The data contains their name, shooting percentages, assists and rebounds, and other relevant information. This information,
+#alongside other information from the same link, can be used to analyze the team and its players, for analytics such as player
+#impact and performance. Modeling can also be done by mapping the height and weight information to production based on the position
+#that the player plays. This can help optimize the roster for best performance.
