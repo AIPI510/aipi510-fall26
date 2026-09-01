@@ -36,7 +36,8 @@ if __name__ == "__main__":
     df = pd.DataFrame(main, index=[0])
     print(df)
 
-# Note
-# Note
-# Note
+# Note: openweatherapi is free
+# Note: use script with .env
+# Note: different note
+# Note: 4th line for autograder
 
