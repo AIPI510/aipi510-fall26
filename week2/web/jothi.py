@@ -35,7 +35,12 @@ for tr in all_rows:
 
 df = pd.DataFrame(rows_data, columns=headers)
 
+filtered_df = df[df['Age'] > 21]
+
 print(df)
+
+print(filtered_df)
+
 df.head(10)
 
 
@@ -43,4 +48,5 @@ df.head(10)
 This script can be used to scrape the scores and ranking of various players in the NBA.
 It will source data from the NBA website on statistics of each player.
 It will be documented here.
+It can be manipulated to filter each player data.
 """
