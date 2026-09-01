@@ -13,6 +13,12 @@ soup = BeautifulSoup(html, "html.parser")
 
 
 df = pd.read_html(str(soup))[0]
+
+df = df.iloc[:, 1:]  # Remove the first column if it's not needed
+
 df.to_csv("philadelphia_76ers_stats.csv", index=False)
 print(df)
-#gives you a list of the names of players and then go through and number them based on time in the game
+
+#gives you a list of the names of players and then go through and number them based on time in the game 
+#adding in insights 
+#works well
