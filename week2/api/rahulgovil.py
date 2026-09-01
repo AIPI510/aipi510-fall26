@@ -9,7 +9,7 @@ data = response.json()
 data = pd.DataFrame(data)
 data = data[["category", "setup", "delivery"]]
 
-print(data.head(10))
+print(data.head())
 
 '''
 The data from the Joke API is a list of jokes with their respective categories, setups, and deliveries. The API url
