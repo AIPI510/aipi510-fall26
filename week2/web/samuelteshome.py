@@ -33,7 +33,7 @@ for row in table.find_all("tr"):
 
             elif href.endswith(".xlsx"):
                 excel_url = urljoin(url, href)
-                
+
 #limits pulled data to just name and link to pdf/excel
     data.append({
         "Name": name,
@@ -60,3 +60,4 @@ print(df.head())
 
 #scrapes CDC website with tables from various public health studies
 #can use this to scrape the site to find studies of interst and compile tables for a ltierature review or presentation
+# also provides links to specific pdfs and spreadsheets associated with that study
