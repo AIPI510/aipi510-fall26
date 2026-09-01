@@ -30,7 +30,6 @@ for i in range(10): # read 10 lines
 for i in range(5):
     print(line_list[i]) # print the first 5 lines (Step 7)
 
-'''
-I used the accelerometer sensor. One project I would use this data for is to track motion and orientation of a drone.
-This way you can monitor human flight responses by logging the data.
-''' 
+# I used the accelerometer sensor.
+# One project I would use this data for is to track motion and orientation of a drone.
+# This way you can monitor human flight responses by logging the data.

@@ -41,11 +41,9 @@ if response.status_code == 200:
 for i in range(5):
     print(df.iloc[i])  # print the first 5 lines (Step 7)
 
-'''
-This is the 2025-26 Premier League standings table, scraped from Wikipedia. 
-Since it's mid-season, standings reflect games played so far rather than a final table.
-One use case is to track a team's form over the season by re-scraping periodically,
-compare goal difference/points to build a simple league predictor, or join
-this with match-level data to analyze how individual results shift table
-position.
-'''
+# This is the 2025-26 Premier League standings table, scraped from Wikipedia. 
+# Since it's mid-season, standings reflect games played so far rather than a final table.
+# One use case is to track a team's form over the season by re-scraping periodically,
+# compare goal difference/points to build a simple league predictor, or join
+# this with match-level data to analyze how individual results shift table
+# position.
