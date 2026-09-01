@@ -8,10 +8,17 @@ response = requests.get(url)
 
 # 2. Parse the JSON response
 data = response.json()
+parsed_data = []
+for coin in data:
+    parsed_data.append({
+        "name": coin.get("name"),
+        "symbol": coin.get("symbol"),
+        "current_price": coin.get("current_price"),
+        "market_cap": coin.get("market_cap")
+    })
 
-# 3. Store relevant fields into a DataFrame
-df = pd.DataFrame(data)
-df = df[["name", "symbol", "current_price", "market_cap"]]
+# 3. Store extracted fields into a DataFrame
+df = pd.DataFrame(parsed_data)
 
 # Let the index start from 1 instead of 0 for display
 df.index = range(1, len(df) + 1)
