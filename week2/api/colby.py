@@ -7,11 +7,17 @@ response = requests.get(url)
 
 data = response.json()
 
-df = pd.DataFrame([data])
+extracted_data = {
+    "category": data.get("category"),
+    "type": data.get("type"),
+    "joke": data.get("joke") if data.get("type") == "single" else f"{data.get('setup')} ... {data.get('delivery')}",
+    "id": data.get("id"),
+}
+
+df = pd.DataFrame([extracted_data])
+
 print(df.head())
 
-'''
-    This file retrives a joke from the JokeAPI and stores the joke along with its metadata in a pandas DataFrame.
-    The error tag, category, type, joke, flags, saftey tag, id, and language are retrieved. 
-    This data can be used to provide a joke for the user to brighten their day, but also analyze the metadata to ensure that the joke is appropriate for the user.
-'''
+#   This file retrives a joke from the JokeAPI and stores the joke along with its metadata in a pandas DataFrame.
+#   The category, type, joke, and id. 
+#   This data can be used to provide a joke for the user to brighten their day, but also analyze the metadata to ensure that the joke is appropriate for the user.

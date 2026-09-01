@@ -16,9 +16,7 @@ top_5 = df.sort_values(by="PTS", ascending=False).head(5)
 
 print(top_5[["Rk", "Player", "PTS"]])
 
-'''
-This script pull player stats from the 2023-2024 NBA season, specifically focusing on the top 5 players based on total points.
-The data is stored in a pandas DataFrame, with each row containing the player's rank, name, and total points scored.
-The data can be used to compare each top 5 player in a barchart to visualize the differences in points scored.
 
-'''
+# This script pull player stats from the 2023-2024 NBA season, specifically focusing on the top 5 players based on total points.
+# The data is stored in a pandas DataFrame, with each row containing the player's rank, name, and total points scored.
+# The data can be used to compare each top 5 player in a barchart to visualize the differences in points scored.
