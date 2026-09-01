@@ -20,5 +20,11 @@ for i in range(10):
     print(line)
 ser.close()
 
-# Create a DataFrame from the collected data
 df = pd.DataFrame(data)
+print(df.head())
+
+'''
+This script uses the temperature and humidity sensors on the Arduino to collect temperature and humidity data.
+The data is stored in a pandas DataFrame, with each row containing the temperature in Celsius and the humidity percentage.
+The data can be used to examine weather conditions in a given area, perhaps for a later visualization.
+'''
