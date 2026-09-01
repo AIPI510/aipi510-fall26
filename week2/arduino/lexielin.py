@@ -2,7 +2,7 @@ import serial
 import time
 import pandas as pd
 
-ser = serial.Serial('/dev/tty.usbmodem11301', 9600)
+ser = serial.Serial('/dev/tty.usbmodem1101', 9600)
 data = []
 time.sleep(2)
 for i in range (10):
