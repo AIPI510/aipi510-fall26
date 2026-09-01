@@ -22,5 +22,5 @@ df = df.dropna(how="all")
 print(df.head())
 
 # This data contains nominal GPS information for countries around the world
-# It includes GDP estimates from different international organizations
+# It includes GDP ranking in the table
 # This data could be used to compare the economic size of different countries
