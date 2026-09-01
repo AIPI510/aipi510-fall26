@@ -3,4 +3,5 @@
 # DO NOT commit more files than stated in instructions 
 
 
-.DS_Store
+.DS_Store.venv/
+.venv/
