@@ -23,3 +23,7 @@ cols = ["time_ms", "ax_g", "ay_g", "az_g", "gx_dps", "gy_dps", "gz_dps", "mx_uT"
 df = pd.DataFrame(data, columns=cols)
 print(df)
 
+""" This code can be used to record Arduino data.
+    It takes input from the Arduino and records it in the dataframe df.
+    It them prints out the df to the user.
+"""
