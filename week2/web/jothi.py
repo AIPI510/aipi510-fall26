@@ -21,7 +21,7 @@ for th in table.find_all('th'):
         break
 headers = headers[1:]
 
-print("Columns:", headers)
+#print("Columns:", headers)
 
 # Getting the df content 
 all_rows = table.find_all("tr")[1:]
@@ -36,6 +36,11 @@ for tr in all_rows:
 df = pd.DataFrame(rows_data, columns=headers)
 
 print(df)
-df.head(5)
+df.head(10)
 
-#This script can be used to scrap the scores and ranking of various players in the NBA
+
+"""
+This script can be used to scrape the scores and ranking of various players in the NBA.
+It will source data from the NBA website on statistics of each player.
+It will be documented here.
+"""
