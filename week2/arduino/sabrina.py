@@ -29,12 +29,12 @@ df.to_csv("sabrina_sensor_data.csv", index=False)
 
 print(df.head())
 
+
+
+
 # Notes:
-# - Sensor used: Arduino Nano 33 BLE Sense Rev2's onboard IMU (accelerometer/gyroscope/
-#   magnetometer) plus environmental sensors (temperature, humidity, pressure, proximity).
-# - Each row is one reading pulled from the serial stream, parsed into named columns and timestamped.
-# - This data could be used to detect motion or gestures, or to monitor room conditions
-#   like temperature and humidity over time.
-# - Possible use: building a simple motion-triggered alert or environment logger.
-# - Limitation: column labels for the last few values (val1-val4) are best guesses — check
-#   the Arduino sketch's Serial.print() order to confirm exact sensor names.
+# - Sensor used: Arduino Nano 33 BLE 
+# - Collected and cleaned data from the Arduino's built-in sensors, including
+#   acceleration and tilt
+# - 
+# - This data could be used for things like detecting gestures, tracking packages, and more
