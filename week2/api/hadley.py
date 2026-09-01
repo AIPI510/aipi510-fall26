@@ -18,8 +18,19 @@ def get_weather(city):
 
     response = requests.get(url, params=params)
     data = response.json()
-    
-    print(data)
+
+    weather_info = {
+        "city": data["name"],
+        "temperature_F": data["main"]["temp"],
+        "feels_like_F": data["main"]["feels_like"],
+        "humidity_pct": data["main"]["humidity"],
+        "conditions": data["weather"][0]["description"],
+        "wind_speed_mph": data["wind"]["speed"]
+    }
+
+    df = pd.DataFrame([weather_info])
+    print(df)
+    return df
 
 city = input("Enter a city:")
 get_weather(city)
