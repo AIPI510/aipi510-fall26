@@ -6,8 +6,13 @@ url = "https://v2.jokeapi.dev/joke/Any"
 response = requests.get(url)
 data = response.json()
 
-data = pd.DataFrame(data)
-data = data[["category", "setup", "delivery"]]
+extracted_data = {
+    "category": data.get("category"),
+    "setup": data.get("setup"),
+    "delivery": data.get("delivery"),
+}
+
+data = pd.DataFrame([extracted_data])
 
 print(data.head())
 
