@@ -8,12 +8,11 @@ response = requests.get(url)
 
 #use beautifulsoup to parse the HTML data
 soup = BeautifulSoup(response.content, 'html.parser')
-#print(response.status_code)
 
 #find the table containing the GDP data
 table = soup.find('table', id = "per_game_stats_post")
 
-#convert the table to a pandas dataframe
+#convert the table to a pandas dataframe and drop columns with any missing or null values
 df = pd.read_html(table.prettify())[0]
 df_drop_any = df.dropna(axis=1, how="any")
 print(df_drop_any.head())
