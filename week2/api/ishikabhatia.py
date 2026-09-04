@@ -39,11 +39,11 @@ for item in data["list"]:
         "minimum_temp": item["main"]["temp_min"],
         "feels_like": item["main"]["feels_like"],
     })
-
+ 
 #Convert to pandas DataFrame
 df = pd.DataFrame(rows)
 print(df.head())
 
-#This data shows the top 5 rows of weather data for New York City, including the city name, date and time of the forecast, weather description, humidity, maximum and minimum temperatures, and the "feels like" temperature.
-#The mean and median for columns humidity, maximum temperature, minimum temperature, and feels like temperature are all very similar, indicating that the data is relatively consistent and there are no extreme outliers and that the features are largely redundant.
+#This data shows the weather data for New York City, including the city name, date and time of the forecast, weather description, humidity, maximum and minimum temperatures, and the "feels like" temperature. 
+#The mean and median for columns humidity, maximum temperature, minimum temperature, and feels like temperature are all very similar, indicating that the data is relatively consistent and there are no extreme outliers and that the features are largely redundant. Please note that the code itself does not return the mean or median, but it was calculated separately. If curious, user can calculate the mean and median using df.mean() and df.median() respectively.
 #This data can be used to analyze weather patterns in New York City and make predictions about future weather conditions. It can also help understand how volatile the weather is throughout the day and how it may affect daily activities.
