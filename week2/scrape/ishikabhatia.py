@@ -19,3 +19,10 @@ df_drop_any = df.dropna(axis=1, how="any")
 print(df_drop_any.head())
 
 
+
+#This data shows the top 5 scorers for the New York Knicks in the 2024 season based on per game stats, including their points, assists, and rebounds. 
+#As seen through this data, Jalen Brunson scored 32.4 points per game, making him the top scorer for the team. 
+#Donte scored 17.8 points per game, making him the second highest scorer for the team.
+#OG Anunoby had the most assists per game
+#The data can be used to analyze player performance and make predictions about future games. It can also help understand how individual players contribute to the team's overall success and be insightful for fantasy basketball fanatics looking to make informed decisions about their team.
+
