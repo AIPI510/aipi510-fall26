@@ -58,13 +58,11 @@ df = df.reset_index(drop=True)
 print(df.shape)
 print(df.head())
 
-"""
-This data is 2023-2024 NBA regular season totals scraped from basketball-reference.com. It includes all players who played in the 2023-2024 NBA season, with their total statistics for the season.
 
-I kept the combined 2TM/3TM rows for players who were traded mid-season, and dropped the individual team rows for those players to avoid double-counting. The last row, which is a "League Average" aggregate, has also been dropped.
+#This data is 2023-2024 NBA regular season totals scraped from basketball-reference.com. It includes all players who played in the 2023-2024 NBA season, with their total statistics for the season.
 
-I did not drop rows with NaN values in percentage columns or the Awards column, as those represent valid cases (e.g., a player who never attempted a certain type of shot).
+#I kept the combined 2TM/3TM rows for players who were traded mid-season, and dropped the individual team rows for those players to avoid double-counting. The last row, which is a "League Average" aggregate, has also been dropped.
 
-This data could be used downstream for analysis, such as calculating averages, comparing player performance, or building predictive models.
+#I did not drop rows with NaN values in percentage columns or the Awards column, as those represent valid cases (e.g., a player who never attempted a certain type of shot).
 
-"""
+#This data could be used downstream for analysis, such as calculating averages, comparing player performance, or building predictive models.
