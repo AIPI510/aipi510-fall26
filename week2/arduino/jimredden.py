@@ -1,5 +1,7 @@
 import serial
 import time
+import csv
+import os
 ser = serial.Serial('/dev/tty.usbmodem1101', 9600)  # Replace 'XXXX' with your Arduino's port
 time.sleep(2)  # Wait for the serial connection to initialize
 
@@ -18,6 +20,18 @@ for i in range(10):
     row = dict(zip(columns, values))  # pair each column name with its matching value -> a dict
     data.append(row)  # add this reading's dict to our list
 ser.close()  # Close the serial connection
+
+# Write the collected readings to a CSV file in this same folder (arduino/),
+# regardless of what directory the script is run from.
+script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(script_dir, "sensor_data.csv")
+
+with open(csv_path, "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=columns)
+    writer.writeheader()   # write the column names as the first row
+    writer.writerows(data)  # write one row per reading
+
+print(f"Wrote {len(data)} rows to {csv_path}")
 
 for row in data[:5]:  # print just the first 5 structured readings to check the result
     print(row)

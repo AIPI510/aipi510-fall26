@@ -25,10 +25,17 @@ headers = [th.text.strip() for th in table.find_all('tr')[0].find_all('th')]
 
 # remaining rows -> data
 rows = []
+# scraped tables don't have real None/NaN - missing data shows up as an empty
+# string or a placeholder character like an em dash, so we check for those instead
+NULL_VALUES = {"", "—", "-", "N/A", "n/a"}
+
 for tr in table.find_all('tr')[1:]:
     cells = [td.text.strip() for td in tr.find_all('td')]
-    if cells:  # skip rows with no <td> (e.g. repeated header rows)
-        rows.append(cells)
+    if not cells:
+        continue  # skip rows with no <td> (e.g. repeated header rows)
+    if any(cell in NULL_VALUES for cell in cells):
+        continue  # skip rows containing a missing/null value in any column
+    rows.append(cells)
 
 df = pd.DataFrame(rows, columns=headers)
 print(df.head())
