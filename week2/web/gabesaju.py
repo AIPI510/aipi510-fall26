@@ -48,4 +48,5 @@ print(df.head())
 # source: Wikipedia "List of countries by GDP (nominal)"
 # each row is one country with three nominal GDP estimates in millions of USD from the IMF, World Bank and UN.
 # The three sources report different reference years (2024-26) so the columns are not directly comparable without accounting for that gap. 
-# A few countries do not have IMF figures and are getting dropped during cleaning.
+# A few countries do not have IMF figures and are getting dropped during cleaning
+# This could be used to join to population data for GDP per capita or compare the three sources against each other to quantify disagreement between bodies.

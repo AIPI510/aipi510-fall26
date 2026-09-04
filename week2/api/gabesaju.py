@@ -39,3 +39,4 @@ print(df.head())
 # each row is one cryptocurrency ranked by market cap, with USD price, market cap and market cap rank
 # the keyless tier only returns 10 coins regardless of the per_page value
 # this is a snapshot from a point in time and not a time series so the values will changes depending on when your run it
+# you could use this by pulling this information on a schedule to build a time series and then test whether the rank changes cluster around the price moves
