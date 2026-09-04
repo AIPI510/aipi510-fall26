@@ -1,22 +1,24 @@
+# Step 1: Import the libraries
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
+# Step 2: Use requests.get(url) to download HTML from your selected page
+# Page: 2023-24 NBA player season totals on Basketball-Reference
 url = "https://www.basketball-reference.com/leagues/NBA_2024_totals.html"
-
 page = requests.get(url)
 html = page.text
 
+# Step 3: Use BeautifulSoup to find the desired <table> and parse it into a DataFrame
+# The player totals table has id="totals_stats"
 soup = BeautifulSoup(html, "html.parser")
 table = soup.find("table", id="totals_stats")
 
-# Read column names from the header row.
 column_names = []
 for header_cell in table.find("thead").find_all("th"):
     name = header_cell.get_text(strip=True)
     column_names.append(name)
 
-# Read each body row into a list of cell values.
 data_rows = []
 for row in table.find("tbody").find_all("tr"):
     cells = []
@@ -27,14 +29,16 @@ for row in table.find("tbody").find_all("tr"):
     if len(cells) == 0:
         continue
 
-    # This table repeats the header (Rk, Player, ...) every so often. Skip those.
-    if cells[0] == "Rk":
-        continue
-
     data_rows.append(cells)
 
 df = pd.DataFrame(data_rows, columns=column_names)
+
+# Step 4: Clean the data (drop rows with missing values or headers repeated in the table)
+# Repeated header rows have "Player" in the Player column
+df = df[df["Player"] != "Player"]
 df = df.dropna()
+
+# Step 5: Print the first 5 rows
 print(df.head())
 
 #   Rk                   Player Age Team Pos   G  GS    MP   FG  ...  TRB  AST  STL BLK  TOV   PF   PTS Trp-Dbl                        Awards
@@ -46,12 +50,11 @@ print(df.head())
 #
 # [5 rows x 32 columns]
 
-# Data Description:
+# Step 6: Add 3–5 lines of notes at the bottom of the script describing your data and how you might use it
 #
+# This data is 2023-24 NBA player season totals (age, position, points, rebounds, assists, awards).
 # This data could be used for several purposes such as:
 #
 # - comparing the average age of the top players in the NBA and the average age of an MVP candidate
 # - comparing the average offensive stats depending on position, for example how many more points PG score on average compared to centers
 # - comparing the average triple doubles among top NBA players, and how that correlates with MVP awards and total points
-
-
