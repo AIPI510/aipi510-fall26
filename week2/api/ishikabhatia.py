@@ -4,7 +4,7 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 
-# Load your API key from .env file
+#Load your API key from .env file
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
 
@@ -26,7 +26,7 @@ response = requests.get(url, params=params)
 #Parse JSON
 data = response.json()
 
-#create an empty list to store the parsed data
+#Create an empty list to store the parsed data
 rows = []
 
 for item in data["list"]:
