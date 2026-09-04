@@ -25,3 +25,5 @@ print(df_drop_any.head())
 #OG Anunoby had the most assists per game
 #The data can be used to analyze player performance and make predictions about future games. It can also help understand how individual players contribute to the team's overall success and be insightful for fantasy basketball fanatics looking to make informed decisions about their team.
 
+#Please note, my first PR had issues with the autograder
+
