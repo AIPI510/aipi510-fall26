@@ -35,6 +35,8 @@ for tr in table.find_all('tr')[1:]:
         continue  # skip rows with no <td> (e.g. repeated header rows)
     if any(cell in NULL_VALUES for cell in cells):
         continue  # skip rows containing a missing/null value in any column
+    if not cells[0].strip().startswith("A"):
+        continue  # keep only countries/territories whose name starts with "A"
     rows.append(cells)
 
 df = pd.DataFrame(rows, columns=headers)
@@ -45,6 +47,9 @@ print(df.head())
 #   table (not the regional-groupings table further down the page).
 # - Each row is one country/territory, with nominal GDP estimates from three sources
 #   side by side: IMF, World Bank, and the United Nations, each for a different year.
+# - Data cleaning/filtering applied: rows with a missing/null value in any column are
+#   dropped, and the dataset is further filtered down to only countries/territories
+#   whose name starts with "A".
 # - Values are scraped as raw strings (with footnote markers like "[1]" still attached
 #   in some cells) - they'd need cleaning (strip footnotes, remove commas, cast to
 #   numeric) before doing any real analysis or plotting.

@@ -1,7 +1,7 @@
 import serial
 import time
-import csv
 import os
+import pandas as pd
 ser = serial.Serial('/dev/tty.usbmodem1101', 9600)  # Replace 'XXXX' with your Arduino's port
 time.sleep(2)  # Wait for the serial connection to initialize
 
@@ -26,12 +26,21 @@ ser.close()  # Close the serial connection
 script_dir = os.path.dirname(os.path.abspath(__file__))
 csv_path = os.path.join(script_dir, "sensor_data.csv")
 
-with open(csv_path, "w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=columns)
-    writer.writeheader()   # write the column names as the first row
-    writer.writerows(data)  # write one row per reading
+df = pd.DataFrame(data)  # build a DataFrame from the list of reading-dicts
+df.to_csv(csv_path, index=False)  # write it out to sensor_data.csv, no row-number column
 
-print(f"Wrote {len(data)} rows to {csv_path}")
+print(f"Wrote {len(df)} rows to {csv_path}")
 
 for row in data[:5]:  # print just the first 5 structured readings to check the result
     print(row)
+
+# Notes:
+# - Sensor used: Arduino Nano 33 BLE Sense Rev2 onboard sensors - the BMI270/BMM150
+#   IMU (accelerometer, gyroscope, magnetometer), HS300x (temperature/humidity),
+#   LPS22HB (barometric pressure), and PDM microphone.
+# - Each row is one sensor snapshot (~5 readings/sec) streamed over serial as a
+#   comma-separated line, which gets parsed into a dict per reading and saved to
+#   sensor_data.csv alongside this script.
+# - What I'd do with this data: plot accelerometer/gyroscope values over time to
+#   detect motion/orientation changes, or track temperature/humidity/pressure
+#   trends if left running over a longer period.
