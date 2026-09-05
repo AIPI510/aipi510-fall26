@@ -16,11 +16,20 @@ response.raise_for_status()
 
 data = response.json()
 
-df = pd.DataFrame(data)
+crypto_data = []
 
-df = df[
-    ["name", "symbol", "current_price", "market_cap", "total_volume"]
-]
+for coin in data:
+    crypto_data.append(
+        {
+            "name": coin["name"],
+            "symbol": coin["symbol"],
+            "current_price": coin["current_price"],
+            "market_cap": coin["market_cap"],
+            "total_volume": coin["total_volume"]
+        }
+    )
+
+df = pd.DataFrame(crypto_data)
 
 print(df.head())
 
