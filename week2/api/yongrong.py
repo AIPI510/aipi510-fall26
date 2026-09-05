@@ -27,7 +27,23 @@ FIELDS = [
 
 def build_market_dataframe(records):  # Converts API records into a clean DataFrame.
     """Select and clean useful cryptocurrency market fields."""
-    market_df = pd.DataFrame(records)[FIELDS]  # Keeps only the fields needed for analysis.
+    selected_records = [
+        {
+            "id": coin.get("id"),
+            "symbol": coin.get("symbol"),
+            "name": coin.get("name"),
+            "current_price": coin.get("current_price"),
+            "market_cap": coin.get("market_cap"),
+            "market_cap_rank": coin.get("market_cap_rank"),
+            "total_volume": coin.get("total_volume"),
+            "price_change_percentage_24h": coin.get(
+                "price_change_percentage_24h"
+            ),
+            "last_updated": coin.get("last_updated"),
+        }
+        for coin in records
+    ]
+    market_df = pd.DataFrame(selected_records, columns=FIELDS)
     market_df = market_df.dropna(subset=["id", "name", "current_price"])
     market_df = market_df.sort_values("market_cap_rank")
     return market_df.reset_index(drop=True)
