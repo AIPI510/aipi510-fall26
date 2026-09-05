@@ -15,9 +15,9 @@ df = df[df.iloc[:, 0] != df.columns[0]]
 
 print(df.head(5))
 
-# The dataframe This data conatains NBA player stats for the 2023–2024 season
+# This dataframe contains NBA player stats for the 2023–2024 season.
 # Possible uses for this data include:
-    # 1. Calculating per game averages for players
-    # 2. Per-minute statistics for players
-    # 3. Usage stats for players 
-    # 4. Team aggregate stats based on individual player stats
+# 1. Calculating per-game averages for players.
+# 2. Calculating per-minute statistics for players.
+# 3. Comparing player usage statistics.
+# 4. Calculating team aggregate statistics.
