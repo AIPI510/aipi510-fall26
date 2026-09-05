@@ -48,7 +48,7 @@ def get_f1_locations(year):
 year = input("Specify year to find locations of F1 sessions: ")
 f1_locations = get_f1_locations(year)
 
-df = pd.DataFrame(f1_locations)
+df = pd.DataFrame(f1_locations).dropna(inplace=False)
 print(df.head())
 
 """
