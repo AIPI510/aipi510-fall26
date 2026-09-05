@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 
 
-URL = "https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population"
+URL = "https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population"  # Page to scrape.
 HEADERS = {
     "User-Agent": (
         "AIPI510 coursework by Yongrong Lu "
@@ -14,7 +14,7 @@ HEADERS = {
 }
 
 
-def parse_population_table(html):
+def parse_population_table(html):  # Converts the page HTML into a clean DataFrame.
     """Parse and clean the main population table from Wikipedia HTML."""
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table", class_="wikitable")
@@ -22,7 +22,7 @@ def parse_population_table(html):
     if table is None:
         raise ValueError("Could not find the population table on the page.")
 
-    population_df = pd.read_html(StringIO(str(table)))[0]
+    population_df = pd.read_html(StringIO(str(table)))[0]  # Creates a DataFrame from the table.
     population_df = population_df.dropna(subset=["Location"])
     population_df = population_df[population_df["Location"] != "Location"]
     return population_df.reset_index(drop=True)
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     response = requests.get(URL, headers=HEADERS, timeout=30)
     response.raise_for_status()
 
-    population_df = parse_population_table(response.text)
+    population_df = parse_population_table(response.text)  # Parses and cleans the response.
     print(population_df.head())
 
 # Notes:
