@@ -1,7 +1,10 @@
+# The code scrapes GDP data from a Wikipedia page, cleans it, and displays the first five rows of the resulting DataFrame.
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from io import StringIO
+
+# Note: I used AI code assist on VSCode for helping guide me with writing this code and fixing debugging issues. 
 
 url = "https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)"
 
