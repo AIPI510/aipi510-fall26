@@ -1,0 +1,748 @@
+name: Week 4 Autograder
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  autograde:
+    if: github.event.pull_request.base.ref == 'week4'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Grade Week 4 notebook
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.issue.number;
+            const pr = context.payload.pull_request;
+
+            const MARKER = "<!-- week4-autograder -->";
+
+            // =======================================================
+            // HELPERS
+            // =======================================================
+
+            function result(passed, points, description) {
+              return {
+                passed,
+                points: passed ? points : 0,
+                possible: points,
+                description
+              };
+            }
+
+            function has(text, regex) {
+              return regex.test(text || "");
+            }
+
+            function hasAny(text, regexes) {
+              return regexes.some(regex => regex.test(text || ""));
+            }
+
+            function countMatches(text, regex) {
+              return (text || "").match(regex)?.length || 0;
+            }
+
+            function wordCount(text) {
+              return (text || "")
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .length;
+            }
+
+            function sourceToString(source) {
+              if (Array.isArray(source)) {
+                return source.join("");
+              }
+
+              return source || "";
+            }
+
+            // =======================================================
+            // GET NOTEBOOK FROM PR
+            // =======================================================
+
+            const changedFiles = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner,
+                repo,
+                pull_number,
+                per_page: 100
+              }
+            );
+
+            const notebookFiles = changedFiles.filter(
+              file =>
+                file.status !== "removed" &&
+                file.filename.endsWith(".ipynb")
+            );
+
+            const notebookFile = notebookFiles[0];
+
+            let notebook = null;
+            let notebookReadable = false;
+
+            if (notebookFile) {
+              try {
+                const headRepoFullName =
+                  pr.head.repo?.full_name || `${owner}/${repo}`;
+
+                const [headOwner, headRepo] =
+                  headRepoFullName.split("/");
+
+                const blob = await github.rest.git.getBlob({
+                  owner: headOwner,
+                  repo: headRepo,
+                  file_sha: notebookFile.sha
+                });
+
+                const raw = Buffer.from(
+                  blob.data.content.replace(/\n/g, ""),
+                  "base64"
+                ).toString("utf8");
+
+                notebook = JSON.parse(raw);
+                notebookReadable = true;
+
+              } catch (error) {
+                console.log(
+                  `Could not parse notebook: ${error.message}`
+                );
+              }
+            }
+
+            const cells = notebook?.cells || [];
+
+            const markdownCells = cells.filter(
+              cell => cell.cell_type === "markdown"
+            );
+
+            const codeCells = cells.filter(
+              cell => cell.cell_type === "code"
+            );
+
+            const markdown = markdownCells
+              .map(cell => sourceToString(cell.source))
+              .join("\n\n");
+
+            const code = codeCells
+              .map(cell => sourceToString(cell.source))
+              .join("\n\n");
+
+            const markdownLower = markdown.toLowerCase();
+
+            // =======================================================
+            // COMMON SIGNALS
+            // =======================================================
+
+            const markdownWords = wordCount(markdown);
+
+            const rationaleCount = countMatches(
+              markdown,
+              /(because|therefore|rationale|reason|chose|chosen|choice|appropriate|based on|so that|to avoid|to preserve|given that|decided|decision)/gi
+            );
+
+            const featureTerms = [
+              /feature/i,
+              /variable/i,
+              /column/i,
+              /heart rate/i,
+              /\bhrv\b/i,
+              /\brmssd\b/i,
+              /\bsdnn\b/i,
+              /\bnni\b/i,
+              /rr interval/i,
+              /\blf\b/i,
+              /\bhf\b/i,
+              /wearable/i,
+              /measurement/i
+            ];
+
+            const featureTermCount = featureTerms.filter(
+              regex => regex.test(markdown)
+            ).length;
+
+            // =======================================================
+            // DATA CONTEXT / SAMPLING
+            // =======================================================
+
+            const hasDatasetContext =
+              hasAny(markdown, [
+                /welltory/i,
+                /covid/i,
+                /wearable/i,
+                /heart rate variability/i,
+                /\bhrv\b/i
+              ]);
+
+            const hasSamplingDiscussion =
+              hasAny(markdown, [
+                /sampl/i,
+                /participant/i,
+                /population/i,
+                /observation/i,
+                /measurement/i,
+                /record/i,
+                /collected/i,
+                /collection/i,
+                /time period/i,
+                /wearable/i,
+                /user/i
+              ]);
+
+            // =======================================================
+            // EXPLORATION
+            // =======================================================
+
+            const exploresStructure =
+              hasAny(code, [
+                /\.shape\b/,
+                /\.info\s*\(/,
+                /\.dtypes\b/,
+                /\.columns\b/,
+                /\.head\s*\(/,
+                /\.tail\s*\(/,
+                /\.nunique\s*\(/
+              ]);
+
+            const exploresDescriptiveStats =
+              hasAny(code, [
+                /\.describe\s*\(/,
+                /\.mean\s*\(/,
+                /\.median\s*\(/,
+                /\.std\s*\(/,
+                /\.quantile\s*\(/,
+                /\.value_counts\s*\(/
+              ]);
+
+            const exploresDataQuality =
+              hasAny(code, [
+                /\.isna\s*\(/,
+                /\.isnull\s*\(/,
+                /\.notna\s*\(/,
+                /\.duplicated\s*\(/,
+                /\.nunique\s*\(/,
+                /\.value_counts\s*\(/
+              ]);
+
+            const exploresRelationships =
+              hasAny(code, [
+                /\.corr\s*\(/,
+                /\.cov\s*\(/,
+                /\.groupby\s*\(/,
+                /\.pivot_table\s*\(/,
+                /\bcrosstab\s*\(/,
+                /scatter\s*\(/,
+                /pairplot\s*\(/,
+                /heatmap\s*\(/,
+                /jointplot\s*\(/,
+                /regplot\s*\(/
+              ]);
+
+            const visualizationCount = countMatches(
+              code,
+              /(?:\bplt\.[A-Za-z_]+\s*\(|\bsns\.[A-Za-z_]+\s*\(|\bpx\.[A-Za-z_]+\s*\(|\.plot\s*\()/g
+            );
+
+            const exploresVisually =
+              visualizationCount >= 2;
+
+            // =======================================================
+            // MISSING VALUES
+            // =======================================================
+
+            const analyzesMissing =
+              hasAny(code, [
+                /\.isna\s*\(/,
+                /\.isnull\s*\(/,
+                /\.notna\s*\(/
+              ]);
+
+            const handlesMissing =
+              hasAny(code, [
+                /\.dropna\s*\(/,
+                /\.fillna\s*\(/,
+                /\.interpolate\s*\(/,
+                /\.ffill\s*\(/,
+                /\.bfill\s*\(/,
+                /SimpleImputer\s*\(/,
+                /KNNImputer\s*\(/,
+                /IterativeImputer\s*\(/
+              ]);
+
+            const discussesMissing =
+              has(markdown, /missing|null|nan/i);
+
+            const explainsMissingDecision =
+              hasAny(markdown, [
+                /missing[\s\S]{0,150}(because|reason|retain|keep|leave|drop|remove|fill|imput|preserv)/i,
+                /(because|reason|retain|keep|leave|drop|remove|fill|imput|preserv)[\s\S]{0,150}missing/i
+              ]);
+
+            const missingRequirement =
+              discussesMissing &&
+              (
+                handlesMissing ||
+                (analyzesMissing && explainsMissingDecision)
+              );
+
+            // =======================================================
+            // DUPLICATES
+            // =======================================================
+
+            const analyzesDuplicates =
+              has(code, /\.duplicated\s*\(/);
+
+            const removesDuplicates =
+              has(code, /\.drop_duplicates\s*\(/);
+
+            const discussesDuplicates =
+              has(markdown, /duplicate/i);
+
+            const duplicateDecision =
+              hasAny(markdown, [
+                /duplicate[\s\S]{0,150}(remove|drop|none|found|retain|keep|because|reason)/i,
+                /(remove|drop|none|found|retain|keep|because|reason)[\s\S]{0,150}duplicate/i
+              ]);
+
+            const duplicateRequirement =
+              discussesDuplicates &&
+              (
+                removesDuplicates ||
+                (analyzesDuplicates && duplicateDecision)
+              );
+
+            // =======================================================
+            // OUTLIERS
+            // =======================================================
+
+            const handlesOrAnalyzesOutliers =
+              hasAny(code, [
+                /\.quantile\s*\(/,
+                /\biqr\b/i,
+                /zscore\s*\(/i,
+                /\.clip\s*\(/,
+                /winsor/i,
+                /boxplot\s*\(/,
+                /standard deviation/i
+              ]);
+
+            const discussesOutliers =
+              hasAny(markdown, [
+                /outlier/i,
+                /extreme value/i,
+                /anomal/i
+              ]);
+
+            const outlierRequirement =
+              handlesOrAnalyzesOutliers &&
+              discussesOutliers;
+
+            // =======================================================
+            // TRANSFORMATION
+            // =======================================================
+
+            const transformsData =
+              hasAny(code, [
+                /\.astype\s*\(/,
+                /to_datetime\s*\(/,
+                /to_numeric\s*\(/,
+                /\.convert_dtypes\s*\(/,
+                /StandardScaler\s*\(/,
+                /MinMaxScaler\s*\(/,
+                /RobustScaler\s*\(/,
+                /get_dummies\s*\(/,
+                /OneHotEncoder\s*\(/,
+                /LabelEncoder\s*\(/,
+                /np\.log/i,
+                /np\.log1p/i,
+                /\.map\s*\(/,
+                /\.replace\s*\(/,
+                /\.rename\s*\(/,
+                /\bpd\.cut\s*\(/,
+                /\bpd\.qcut\s*\(/
+              ]);
+
+            // =======================================================
+            // FEATURE ENGINEERING
+            // =======================================================
+
+            const createsColumn =
+              hasAny(code, [
+                /[A-Za-z_]\w*\s*\[\s*["'][^"']+["']\s*\]\s*=/,
+                /\.assign\s*\(/,
+                /\.insert\s*\(/
+              ]);
+
+            const discussesNewFeature =
+              hasAny(markdown, [
+                /new feature/i,
+                /feature engineering/i,
+                /engineered feature/i,
+                /derived feature/i,
+                /created.*feature/i,
+                /calculated.*feature/i
+              ]);
+
+            const featureEngineeringRequirement =
+              createsColumn &&
+              discussesNewFeature;
+
+            // =======================================================
+            // DATA QUALITY DISCUSSION
+            // =======================================================
+
+            const discussesProfiling =
+              hasAny(markdown, [
+                /data profiling/i,
+                /\bprofiling\b/i,
+                /data profile/i,
+                /schema/i,
+                /distribution/i
+              ]);
+
+            const discussesCompleteness =
+              hasAny(markdown, [
+                /completeness/i,
+                /missingness/i,
+                /missing data/i,
+                /missing values/i,
+                /coverage/i
+              ]);
+
+            const discussesAccuracy =
+              hasAny(markdown, [
+                /data accuracy/i,
+                /\baccuracy\b/i,
+                /accurate/i,
+                /measurement error/i,
+                /plausib/i,
+                /validity/i,
+                /incorrect value/i
+              ]);
+
+            const discussesConsistency =
+              hasAny(markdown, [
+                /data consistency/i,
+                /\bconsistency\b/i,
+                /\bconsistent\b/i,
+                /inconsistent/i,
+                /units/i,
+                /format/i,
+                /standardiz/i
+              ]);
+
+            const discussesIntegrity =
+              hasAny(markdown, [
+                /data integrity/i,
+                /\bintegrity\b/i,
+                /constraint/i,
+                /unique key/i,
+                /primary key/i,
+                /referential/i
+              ]);
+
+            const discussesLineage =
+              hasAny(markdown, [
+                /data lineage/i,
+                /\blineage\b/i,
+                /provenance/i,
+                /data source/i,
+                /source of the data/i,
+                /origin of the data/i,
+                /collected by/i,
+                /welltory/i
+              ]);
+
+            // =======================================================
+            // INTERPRETATION / RATIONALE
+            // =======================================================
+
+            const substantialInterpretation =
+              markdownWords >= 250 &&
+              hasAny(markdown, [
+                /observ/i,
+                /suggest/i,
+                /indicat/i,
+                /pattern/i,
+                /relationship/i,
+                /distribution/i,
+                /finding/i,
+                /because/i,
+                /therefore/i,
+                /implies/i
+              ]);
+
+            const providesRationale =
+              rationaleCount >= 3;
+
+            // =======================================================
+            // 20-POINT RUBRIC
+            // =======================================================
+
+            const grades = [];
+
+            // -------------------------------------------------------
+            // CONTEXT & UNDERSTANDING — 3
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Data Context & Understanding",
+              checks: [
+                result(
+                  notebookFiles.length === 1 && notebookReadable,
+                  1,
+                  "A readable Jupyter notebook is submitted"
+                ),
+
+                result(
+                  hasDatasetContext && hasSamplingDiscussion,
+                  1,
+                  "Documents dataset context and sampling"
+                ),
+
+                result(
+                  featureTermCount >= 3,
+                  1,
+                  "Discusses what the dataset features/variables represent"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // EXPLORATION — 5
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Data Exploration",
+              checks: [
+                result(
+                  exploresStructure,
+                  1,
+                  "Explores data structure, columns, types, or dimensions"
+                ),
+
+                result(
+                  exploresDescriptiveStats,
+                  1,
+                  "Explores descriptive statistics"
+                ),
+
+                result(
+                  exploresDataQuality,
+                  1,
+                  "Programmatically investigates data quality"
+                ),
+
+                result(
+                  exploresRelationships,
+                  1,
+                  "Explores relationships among variables"
+                ),
+
+                result(
+                  exploresVisually,
+                  1,
+                  "Uses multiple visualizations to explore the data"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // CLEANING & TRANSFORMATION — 5
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Cleaning, Transformation & Feature Engineering",
+              checks: [
+                result(
+                  missingRequirement,
+                  1,
+                  "Investigates and addresses missing values with a documented strategy"
+                ),
+
+                result(
+                  duplicateRequirement,
+                  1,
+                  "Investigates and addresses duplicate records"
+                ),
+
+                result(
+                  outlierRequirement,
+                  1,
+                  "Investigates and discusses outliers"
+                ),
+
+                result(
+                  transformsData,
+                  1,
+                  "Performs an appropriate data transformation"
+                ),
+
+                result(
+                  featureEngineeringRequirement,
+                  1,
+                  "Creates and documents at least one new feature"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // DATA QUALITY DISCUSSION — 5
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Data Quality Assessment",
+              checks: [
+                result(
+                  discussesProfiling && discussesCompleteness,
+                  1,
+                  "Discusses data profiling and completeness"
+                ),
+
+                result(
+                  discussesAccuracy,
+                  1,
+                  "Discusses data accuracy"
+                ),
+
+                result(
+                  discussesConsistency,
+                  1,
+                  "Discusses data consistency"
+                ),
+
+                result(
+                  discussesIntegrity,
+                  1,
+                  "Discusses data integrity"
+                ),
+
+                result(
+                  discussesLineage,
+                  1,
+                  "Discusses data lineage and/or provenance"
+                )
+              ]
+            });
+
+            // -------------------------------------------------------
+            // RATIONALE & INTERPRETATION — 2
+            // -------------------------------------------------------
+
+            grades.push({
+              section: "Rationale & Interpretation",
+              checks: [
+                result(
+                  providesRationale,
+                  1,
+                  "Provides rationale for analytical and cleaning choices"
+                ),
+
+                result(
+                  substantialInterpretation,
+                  1,
+                  "Includes substantive written interpretation of the exploration"
+                )
+              ]
+            });
+
+            // =======================================================
+            // CALCULATE FINAL SCORE
+            // =======================================================
+
+            let total = 0;
+            let possible = 0;
+
+            for (const section of grades) {
+              for (const check of section.checks) {
+                total += check.points;
+                possible += check.possible;
+              }
+            }
+
+            // =======================================================
+            // BUILD PR COMMENT
+            // =======================================================
+
+            let body = `${MARKER}
+            ## 🤖 Week 4 Autograder
+
+            **Score: ${total} / ${possible}**
+
+            `;
+
+            for (const section of grades) {
+
+              const sectionScore = section.checks.reduce(
+                (sum, check) => sum + check.points,
+                0
+              );
+
+              const sectionPossible = section.checks.reduce(
+                (sum, check) => sum + check.possible,
+                0
+              );
+
+              body += `### ${section.section} — ${sectionScore}/${sectionPossible}\n\n`;
+
+              for (const check of section.checks) {
+                const symbol = check.passed ? "✅" : "❌";
+
+                body += `${symbol} ${check.description} — **${check.points}/${check.possible}**\n`;
+              }
+
+              body += "\n";
+            }
+
+            body += `
+            ---
+            This automated score checks for evidence that each component of the assignment was addressed. Because data exploration involves judgment, equivalent approaches may satisfy the same requirement and human reviewers may adjust the final grade.
+            `;
+
+            // =======================================================
+            // CREATE OR UPDATE COMMENT
+            // =======================================================
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: pull_number,
+                per_page: 100
+              }
+            );
+
+            const existingComment = comments.find(
+              comment =>
+                comment.user.type === "Bot" &&
+                comment.body.includes(MARKER)
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body
+              });
+            }
+
+            console.log(`Week 4 score: ${total}/${possible}`);
